@@ -1,5 +1,4 @@
 ---
-
 - name: "Determine latest version from internet"
   when:
     - rke2_install_version | length == 0
@@ -7,7 +6,6 @@
     - rke2_install_local_tarball_path == ""
     - rke2_install_tarball_url == ""
   block:
-
     - name: Get versions from update.rke2.io
       ansible.builtin.uri:
         url: https://update.rke2.io/v1-release/channels/{{ rke2_channel }}
@@ -43,6 +41,10 @@
   when:
     - rke2_install_version | length > 0
 
+- name: Show resolved RKE2 version
+  ansible.builtin.debug:
+    msg: "Resolved RKE2 version: {{ rke2_full_version if (rke2_full_version | length > 0) else 'latest' }}"
+
 - name: Set rke2_package_state to latest
   ansible.builtin.set_fact:
     rke2_package_state: "latest"
@@ -54,7 +56,6 @@
     - install_method == "rpm"
     - rke2_full_version | length > 0
   block:
-
     - name: Set Maj.Min version
       ansible.builtin.shell:
         cmd: set -o pipefail && echo {{ rke2_full_version }} | /bin/awk -F'.' '{ print $1"."$2 }' | sed "s|^v||g"
@@ -84,7 +85,6 @@
         rke2_version_rpm: "{{ '-' + rke2_version_rpm }}"
       when:
         - rke2_version_rpm | length > 0
-
 #   - name: Describe versions
 #   ansible.builtin.debug:
 #     msg:
