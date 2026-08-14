@@ -44,15 +44,51 @@ Deployment environment must have Ansible 2.9.0+
 
 Usage
 -----
-Create an Ansible inventory file (or folder), you can check the docs folder for examples (`basic_sample_inventory` or `advanced_sample_inventory`).
+For BCIT TLU infrastructure, this repository uses the shared inventory from the
+sibling `ansible` repository. Operators need both repositories checked out side
+by side:
+
+```text
+github/
+  ansible/
+  rke2-ansible/
+```
+
+The default `ansible.cfg` points at `../ansible/inventory/hosts.yml`, and
+`site.yml` targets the `rke2_all` group from that inventory. RKE2 node
+membership, host addresses, topology locations, RKE2 version, supervisor
+metrics, server taints, and agent labels are maintained in the `ansible`
+repository under:
+
+- `inventory/hosts.yml`
+- `inventory/host_vars/`
+- `inventory/group_vars/rke2_all/rke2.yml`
+- `inventory/group_vars/rke2_servers/rke2.yml`
+- `inventory/group_vars/rke2_agents/rke2.yml`
+
+Do not create or update a second production inventory in this repository. If a
+node needs to be added, removed, moved between clusters, or retagged, update the
+authoritative inventory in `ansible` first.
+
+If you are using this playbook outside the BCIT TLU checkout layout, create an
+Ansible inventory file or folder and pass it explicitly with `-i`. You can check
+the docs folder for examples (`basic_sample_inventory` or
+`advanced_sample_inventory`).
 
 > [!NOTE]  
 > More detailed information can be found [here](./docs/README.md)
 
-Start provisioning the cluster using the following command:
+Start provisioning the BCIT TLU cluster using the shared inventory:
 ```bash
-ansible-playbook site.yml -i inventory/hosts.yml -b
+ansible-playbook site.yml -b
 ```  
+
+To target a specific cluster or host from the shared inventory, use `--limit`:
+
+```bash
+ansible-playbook site.yml -b --limit cluster04
+ansible-playbook site.yml -b --limit prod-manager-13.ltc.bcit.ca
+```
 
 
 Tarball Install/Air-Gap Install  
