@@ -1,7 +1,7 @@
 ---
 
 - name: RKE2 play
-  hosts: all
+  hosts: rke2_all
   any_errors_fatal: true
   become: true
   roles:
