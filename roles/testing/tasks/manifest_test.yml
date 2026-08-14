@@ -22,7 +22,7 @@
     get pod automated-testing-pod
     -o jsonpath='{.status.phase}'
   register: status_result
-  delegate_to: "{{ groups['rke2_servers'][0] }}"
+  delegate_to: "{{ rke2_active_servers[0] }}"
   changed_when: false
 
 - name: Assertions

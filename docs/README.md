@@ -27,6 +27,12 @@ There are two methods for consuming this repository, one is to simply clone the 
 > [!NOTE]  
 > If you are looking for airgap or tarball installation instructions, please go [here](./tarball_install.md)
 
+> [!NOTE]
+> BCIT TLU production operations use the authoritative inventory in the sibling
+> `ansible` repository. Run playbooks from the `rke2-ansible` repository root so
+> `ansible.cfg` can resolve `../ansible/inventory/hosts.yml`, or pass another
+> compatible inventory explicitly with `-i`.
+
 ## Cloning  
 The simplest method for using this repository (as detailed in the main README.md) is to simply clone the repository and copy the sample inventory. 
 

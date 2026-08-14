@@ -1,11 +1,23 @@
 ---
+- name: Scope RKE2 testing inventory groups to the active play
+  ansible.builtin.set_fact:
+    rke2_active_servers: "{{ ansible_play_hosts_all | intersect(groups.get('rke2_servers', [])) }}"
+
+- name: Require an active RKE2 server for testing
+  ansible.builtin.assert:
+    that:
+      - rke2_active_servers | length > 0
+    fail_msg: >-
+      No rke2_servers hosts are active in this test play. Check the shared
+      inventory or the --limit expression before running testing.yml.
+  run_once: true
 
 - name: Basic Infra tests
   ansible.builtin.include_tasks: basic_tests.yml
 
 - name: Manifest test
   ansible.builtin.include_tasks: manifest_test.yml
-  when: inventory_hostname in groups['rke2_servers'][0]
+  when: inventory_hostname == rke2_active_servers[0]
 
 - name: Basic kubectl tests
   ansible.builtin.include_tasks: kubectl_basic.yml

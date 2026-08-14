@@ -6,6 +6,20 @@
   ansible.builtin.package_facts:
     manager: auto
 
+- name: Scope RKE2 inventory groups to the active play
+  ansible.builtin.set_fact:
+    rke2_active_servers: "{{ ansible_play_hosts_all | intersect(groups.get('rke2_servers', [])) }}"
+    rke2_active_agents: "{{ ansible_play_hosts_all | intersect(groups.get('rke2_agents', [])) }}"
+
+- name: Require an active RKE2 server
+  ansible.builtin.assert:
+    that:
+      - rke2_active_servers | length > 0
+    fail_msg: >-
+      No rke2_servers hosts are active in this play. Check the shared inventory
+      or the --limit expression before running the RKE2 role.
+  run_once: true
+
 - name: Set for install method of tarball
   ansible.builtin.set_fact:
     install_method: tarball
@@ -66,8 +80,7 @@
 
 - name: Create a list of ready servers
   ansible.builtin.set_fact:
-    ready_servers: "{{ groups.rke2_servers | map('extract', hostvars) | selectattr('rke2_node_ready', 'equalto', true) | map(attribute='inventory_hostname') | list }}"
-  delegate_to: localhost
+    ready_servers: "{{ rke2_active_servers | map('extract', hostvars) | selectattr('rke2_node_ready', 'equalto', true) | map(attribute='inventory_hostname') | list }}"
   run_once: true
 
 - name: Tarball Install
@@ -91,19 +104,20 @@
   when:
     - rke2_manifest_config_directory is defined
     - rke2_manifest_config_directory | length > 0
-    - inventory_hostname in groups['rke2_servers'][0]
+    - inventory_hostname == rke2_active_servers[0]
 
-# is the ready_servers array is empty, we assume it's a new cluster and use the first server in groups['rke2_servers']
+# If ready_servers is empty, assume this is a new cluster and use the first
+# active server in the current play.
 - name: Start the first rke2 node
   ansible.builtin.include_tasks: first_server.yml
   when:
-    - inventory_hostname in groups['rke2_servers'][0]
+    - inventory_hostname == rke2_active_servers[0]
     - ready_servers | length == 0
 
 - name: Save_generated_token.yml
   ansible.builtin.include_tasks: save_generated_token.yml
   vars:
-    token_source_node: "{{ groups['rke2_servers'][0] }}"
+    token_source_node: "{{ rke2_active_servers[0] }}"
   when:
     - ready_servers | length == 0
 
@@ -131,4 +145,4 @@
   when:
     - rke2_manifest_config_post_run_directory is defined
     - rke2_manifest_config_post_run_directory | length > 0
-    - inventory_hostname in groups['rke2_servers'][0]
+    - inventory_hostname == rke2_active_servers[0]

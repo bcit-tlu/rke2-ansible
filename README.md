@@ -55,7 +55,9 @@ github/
 ```
 
 The default `ansible.cfg` points at `../ansible/inventory/hosts.yml`, and
-`site.yml` targets the `rke2_all` group from that inventory. RKE2 node
+`site.yml` targets the `rke2_all` group from that inventory. Explicit
+non-production inventories can still use the upstream-style `rke2_cluster`
+group when passed with `-i`. RKE2 node
 membership, host addresses, topology locations, RKE2 version, supervisor
 metrics, server taints, and agent labels are maintained in the `ansible`
 repository under:
@@ -69,6 +71,11 @@ repository under:
 Do not create or update a second production inventory in this repository. If a
 node needs to be added, removed, moved between clusters, or retagged, update the
 authoritative inventory in `ansible` first.
+
+The relative inventory path is resolved from the command working directory, so
+run the production commands below from the `rke2-ansible` repository root. CI,
+tests, or local experiments that run from another directory should pass an
+explicit inventory with `-i`.
 
 If you are using this playbook outside the BCIT TLU checkout layout, create an
 Ansible inventory file or folder and pass it explicitly with `-i`. You can check
@@ -89,6 +96,10 @@ To target a specific cluster or host from the shared inventory, use `--limit`:
 ansible-playbook site.yml -b --limit cluster04
 ansible-playbook site.yml -b --limit prod-manager-13.ltc.bcit.ca
 ```
+
+The playbook scopes bootstrap server and token selection to the active play
+hosts, so a cluster limit such as `cluster04` is safe with the shared
+multi-cluster inventory.
 
 
 Tarball Install/Air-Gap Install  

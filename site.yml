@@ -1,7 +1,23 @@
 ---
 
+- name: Validate RKE2 inventory
+  hosts: localhost:rke2_all:rke2_cluster
+  gather_facts: false
+  tasks:
+    - name: Require shared RKE2 inventory groups
+      ansible.builtin.assert:
+        that:
+          - (groups.get('rke2_all', []) + groups.get('rke2_cluster', [])) | length > 0
+          - groups.get('rke2_servers', []) | length > 0
+        fail_msg: >-
+          This playbook requires an inventory with rke2_servers and either
+          rke2_all or rke2_cluster groups. For BCIT TLU infrastructure, run
+          from this repository root with the sibling ../ansible checkout
+          available, or pass a compatible inventory explicitly with -i.
+      run_once: true
+
 - name: RKE2 play
-  hosts: rke2_all
+  hosts: rke2_all:rke2_cluster
   any_errors_fatal: true
   become: true
   roles:
