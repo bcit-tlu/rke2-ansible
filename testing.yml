@@ -1,22 +1,21 @@
 ---
 - name: Validate RKE2 inventory
-  hosts: localhost:rke2_servers:rke2_agents
+  hosts: "{{ 'rke2_all' if 'rke2_all' in groups else ('rke2_servers:rke2_agents' if 'rke2_agents' in groups else 'rke2_servers') }}"
   gather_facts: false
   tasks:
     - name: Require shared RKE2 inventory groups
       ansible.builtin.assert:
         that:
           - groups.get('rke2_servers', []) | length > 0
-          - "'rke2_agents' in groups"
         fail_msg: >-
-          This playbook requires an inventory with rke2_servers and rke2_agents
-          groups. For BCIT TLU infrastructure, run from this repository root
-          with the sibling ../ansible checkout available, or pass a compatible
-          inventory explicitly with -i.
+          This playbook requires an inventory with rke2_servers and optional
+          rke2_agents groups. For BCIT TLU infrastructure, run from this
+          repository root with the sibling ../ansible checkout available, or
+          pass a compatible inventory explicitly with -i.
       run_once: true
 
 - name: Testing play
-  hosts: rke2_servers:rke2_agents
+  hosts: "{{ 'rke2_all' if 'rke2_all' in groups else ('rke2_servers:rke2_agents' if 'rke2_agents' in groups else 'rke2_servers') }}"
   become: true
   roles:
     - role: testing
