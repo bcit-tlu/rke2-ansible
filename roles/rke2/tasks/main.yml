@@ -1,11 +1,4 @@
 ---
-- name: Populate service facts
-  ansible.builtin.service_facts: {}
-
-- name: Gather the package facts
-  ansible.builtin.package_facts:
-    manager: auto
-
 - name: Discover RKE2 cluster groups
   ansible.builtin.set_fact:
     rke2_discovered_cluster_groups: >-
@@ -51,6 +44,13 @@
       The target cluster group {{ rke2_target_cluster_group }} does not contain
       any hosts from rke2_servers.
   run_once: true
+
+- name: Populate service facts
+  ansible.builtin.service_facts: {}
+
+- name: Gather the package facts
+  ansible.builtin.package_facts:
+    manager: auto
 
 - name: Set for install method of tarball
   ansible.builtin.set_fact:
