@@ -13,15 +13,16 @@
           repository root with the sibling ../ansible checkout available, or
           pass a compatible inventory explicitly with -i.
       run_once: true
+      delegate_to: localhost
 
 - name: Testing play
   hosts: >-
     {{
       (
         (['rke2_all'] if (groups.get('rke2_all', []) | length > 0) else [])
-        + ['rke2_servers']
+        + (['rke2_servers'] if (groups.get('rke2_servers', []) | length > 0) else [])
         + (['rke2_agents'] if (groups.get('rke2_agents', []) | length > 0) else [])
-      ) | join(':')
+      ) | join(':') | default('all:!all', true)
     }}
   become: true
   roles:
