@@ -1,6 +1,6 @@
 ---
 - name: Validate RKE2 inventory
-  hosts: "{{ 'rke2_all' if 'rke2_all' in groups else ('rke2_servers:rke2_agents' if 'rke2_agents' in groups else 'rke2_servers') }}"
+  hosts: localhost:all
   gather_facts: false
   tasks:
     - name: Require shared RKE2 inventory groups
@@ -15,7 +15,14 @@
       run_once: true
 
 - name: Testing play
-  hosts: "{{ 'rke2_all' if 'rke2_all' in groups else ('rke2_servers:rke2_agents' if 'rke2_agents' in groups else 'rke2_servers') }}"
+  hosts: >-
+    {{
+      (
+        (['rke2_all'] if (groups.get('rke2_all', []) | length > 0) else [])
+        + ['rke2_servers']
+        + (['rke2_agents'] if (groups.get('rke2_agents', []) | length > 0) else [])
+      ) | join(':')
+    }}
   become: true
   roles:
     - role: testing
