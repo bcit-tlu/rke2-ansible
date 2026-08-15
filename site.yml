@@ -4,15 +4,56 @@
   hosts: localhost:all
   gather_facts: false
   tasks:
+    - name: Discover RKE2 cluster groups
+      ansible.builtin.set_fact:
+        rke2_preflight_cluster_groups: >-
+          {{
+            (rke2_cluster_groups | default([]))
+            if ((rke2_cluster_groups | default([])) | length > 0)
+            else (
+              groups.keys()
+              | select('match', rke2_cluster_group_pattern | default('^(rke2_cluster|cluster[0-9]+)$'))
+              | list
+            )
+          }}
+      run_once: true
+      delegate_to: localhost
+
+    - name: Initialize active RKE2 cluster groups
+      ansible.builtin.set_fact:
+        rke2_preflight_active_cluster_groups: []
+      run_once: true
+      delegate_to: localhost
+
+    - name: Find RKE2 cluster groups touched by this play
+      ansible.builtin.set_fact:
+        rke2_preflight_active_cluster_groups: "{{ rke2_preflight_active_cluster_groups + [item] }}"
+      loop: "{{ rke2_preflight_cluster_groups }}"
+      when:
+        - ansible_play_hosts_all | intersect(groups.get(item, [])) | length > 0
+      run_once: true
+      delegate_to: localhost
+
     - name: Require shared RKE2 inventory groups
       ansible.builtin.assert:
         that:
           - groups.get('rke2_servers', []) | length > 0
+          - rke2_preflight_cluster_groups | length > 0
+          - rke2_preflight_active_cluster_groups | length == 1
+          - >-
+            groups.get('rke2_all', []) | length == 0 or
+            (
+              ((groups.get('rke2_servers', []) + groups.get('rke2_agents', [])) | unique)
+              | difference(groups.get('rke2_all', []))
+              | length
+            ) == 0
         fail_msg: >-
-          This playbook requires an inventory with rke2_servers and optional
-          rke2_agents groups. For BCIT TLU infrastructure, run from this
-          repository root with the sibling ../ansible checkout available, or
-          pass a compatible inventory explicitly with -i.
+          This playbook requires an inventory with rke2_servers, optional
+          rke2_agents, and exactly one active cluster group matching
+          rke2_cluster_group_pattern. If rke2_all is populated, it must include
+          every rke2_servers and rke2_agents host. For BCIT TLU infrastructure,
+          run from this repository root with the sibling ../ansible checkout
+          available, or pass a compatible inventory explicitly with -i.
       run_once: true
       delegate_to: localhost
 
@@ -20,10 +61,15 @@
   hosts: >-
     {{
       (
-        (['rke2_all'] if (groups.get('rke2_all', []) | length > 0) else [])
-        + (['rke2_servers'] if (groups.get('rke2_servers', []) | length > 0) else [])
-        + (['rke2_agents'] if (groups.get('rke2_agents', []) | length > 0) else [])
-      ) | join(':') | default('all:!all', true)
+        ['rke2_all']
+        if (groups.get('rke2_all', []) | length > 0)
+        else (
+          (['rke2_servers'] if (groups.get('rke2_servers', []) | length > 0) else [])
+          + (['rke2_agents'] if (groups.get('rke2_agents', []) | length > 0) else [])
+        )
+      )
+      | join(':')
+      | default('all:!all', true)
     }}
   any_errors_fatal: true
   become: true

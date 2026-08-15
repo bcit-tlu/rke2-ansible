@@ -56,7 +56,9 @@ github/
 
 The default `ansible.cfg` points at `../ansible/inventory/hosts.yml`, and
 `site.yml` targets populated `rke2_all`, `rke2_servers`, and optional
-`rke2_agents` groups without referencing groups that are absent or empty.
+`rke2_agents` groups without referencing groups that are absent or empty. When
+`rke2_all` is present, it must contain every `rke2_servers` and `rke2_agents`
+host.
 Explicit non-production inventories can still use the upstream-style
 `rke2_cluster` parent group when passed with `-i`, as long as they also define
 the `rke2_servers` and optional `rke2_agents` child groups. RKE2 node
