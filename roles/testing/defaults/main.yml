@@ -1,2 +1,4 @@
 ---
 # Defaults
+rke2_cluster_groups: []
+rke2_cluster_group_pattern: "^(rke2_cluster|cluster[0-9]+)$"

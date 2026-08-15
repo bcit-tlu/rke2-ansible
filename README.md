@@ -44,15 +44,66 @@ Deployment environment must have Ansible 2.9.0+
 
 Usage
 -----
-Create an Ansible inventory file (or folder), you can check the docs folder for examples (`basic_sample_inventory` or `advanced_sample_inventory`).
+For BCIT TLU infrastructure, this repository uses the shared inventory from the
+sibling `ansible` repository. Operators need both repositories checked out side
+by side:
+
+```text
+github/
+  ansible/
+  rke2-ansible/
+```
+
+The default `ansible.cfg` points at `../ansible/inventory/hosts.yml`, and
+`site.yml` targets the `rke2_all` group from that inventory. Explicit
+non-production inventories can still use the upstream-style `rke2_cluster`
+group when passed with `-i`. RKE2 node
+membership, host addresses, topology locations, RKE2 version, supervisor
+metrics, server taints, and agent labels are maintained in the `ansible`
+repository under:
+
+- `inventory/hosts.yml`
+- `inventory/host_vars/`
+- `inventory/group_vars/rke2_all/rke2.yml`
+- `inventory/group_vars/rke2_servers/rke2.yml`
+- `inventory/group_vars/rke2_agents/rke2.yml`
+
+Do not create or update a second production inventory in this repository. If a
+node needs to be added, removed, moved between clusters, or retagged, update the
+authoritative inventory in `ansible` first.
+
+The relative inventory path is resolved from the command working directory, so
+run the production commands below from the `rke2-ansible` repository root. CI,
+tests, or local experiments that run from another directory should pass an
+explicit inventory with `-i`.
+
+If you are using this playbook outside the BCIT TLU checkout layout, create an
+Ansible inventory file or folder and pass it explicitly with `-i`. You can check
+the docs folder for examples (`basic_sample_inventory` or
+`advanced_sample_inventory`).
 
 > [!NOTE]  
 > More detailed information can be found [here](./docs/README.md)
 
-Start provisioning the cluster using the following command:
+Start provisioning a BCIT TLU cluster from the shared inventory by selecting a
+single target cluster or host subset with `--limit`:
+
 ```bash
-ansible-playbook site.yml -i inventory/hosts.yml -b
-```  
+ansible-playbook site.yml -b --limit cluster04
+ansible-playbook site.yml -b --limit prod-manager-13.ltc.bcit.ca
+ansible-playbook site.yml -b --limit prod-worker-08.ltc.bcit.ca
+```
+
+Do not run `ansible-playbook site.yml -b` without a limit against the BCIT TLU
+shared inventory. It contains multiple independent RKE2 clusters, and this
+playbook intentionally fails if a run spans more than one cluster group.
+
+The playbook discovers the target cluster group from the limited hosts, then
+uses that cluster's ordered `rke2_servers` list for bootstrap, manifests, token
+retrieval, and join URLs. This allows worker-only or single-host maintenance
+runs to delegate token lookup to an existing server in the same target cluster.
+Inventories that do not use `rke2_cluster` or `clusterNN` group names should set
+`rke2_cluster_groups` or `rke2_cluster_group_pattern`.
 
 
 Tarball Install/Air-Gap Install  

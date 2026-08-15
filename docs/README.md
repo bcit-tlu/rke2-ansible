@@ -27,6 +27,12 @@ There are two methods for consuming this repository, one is to simply clone the 
 > [!NOTE]  
 > If you are looking for airgap or tarball installation instructions, please go [here](./tarball_install.md)
 
+> [!NOTE]
+> BCIT TLU production operations use the authoritative inventory in the sibling
+> `ansible` repository. Run playbooks from the `rke2-ansible` repository root so
+> `ansible.cfg` can resolve `../ansible/inventory/hosts.yml`, or pass another
+> compatible inventory explicitly with `-i`.
+
 ## Cloning  
 The simplest method for using this repository (as detailed in the main README.md) is to simply clone the repository and copy the sample inventory. 
 
@@ -69,6 +75,13 @@ rke2_cluster:
         agent0.example.com:
 ```  
 This is the simplest possible inventory file and will deploy the latest available version of RKE2 with only default settings.
+
+The playbook uses cluster groups to keep bootstrap, token, and manifest
+selection scoped to one RKE2 cluster at a time. Single-cluster inventories should
+use the `rke2_cluster` group shown above. Shared multi-cluster inventories should
+limit each run to one cluster group or host subset and use cluster group names
+that match `clusterNN`, or set `rke2_cluster_groups` /
+`rke2_cluster_group_pattern` explicitly.
 
 
 ## Structuring Your Variable Files  
