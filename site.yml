@@ -15,10 +15,17 @@
               | difference(groups.get('rke2_all', []))
               | length
             ) == 0
+          - >-
+            groups.get('rke2_all', []) | length == 0 or
+            (
+              groups.get('rke2_all', [])
+              | difference(((groups.get('rke2_servers', []) + groups.get('rke2_agents', [])) | unique))
+              | length
+            ) == 0
         fail_msg: >-
           This playbook requires an inventory with rke2_servers and optional
-          rke2_agents groups. If rke2_all is populated, it must include every
-          rke2_servers and rke2_agents host. For BCIT TLU infrastructure, run
+          rke2_agents groups. If rke2_all is populated, it must contain exactly
+          the rke2_servers and rke2_agents hosts. For BCIT TLU infrastructure, run
           from this repository root with the sibling ../ansible checkout
           available, or pass a compatible inventory explicitly with -i.
       run_once: true

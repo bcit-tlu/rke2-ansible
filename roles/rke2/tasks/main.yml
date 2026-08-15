@@ -45,6 +45,12 @@
       any hosts from rke2_servers.
   run_once: true
 
+- name: Gather minimal host facts
+  ansible.builtin.setup:
+    gather_subset:
+      - '!all'
+      - min
+
 - name: Populate service facts
   ansible.builtin.service_facts: {}
 
