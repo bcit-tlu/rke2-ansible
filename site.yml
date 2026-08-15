@@ -9,7 +9,7 @@
         that:
           - groups.get('rke2_servers', []) | length > 0
           - >-
-            rke2_selected_all_hosts | length == 0 or
+            rke2_selected_role_hosts | length == 0 or
             (
               rke2_selected_role_hosts
               | difference(rke2_selected_all_hosts)
