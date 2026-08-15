@@ -50,6 +50,9 @@
     gather_subset:
       - '!all'
       - min
+  when: >-
+    ansible_facts['os_family'] is not defined or
+    ansible_facts['architecture'] is not defined
 
 - name: Populate service facts
   ansible.builtin.service_facts: {}
