@@ -9,25 +9,34 @@
         that:
           - groups.get('rke2_servers', []) | length > 0
           - >-
-            groups.get('rke2_all', []) | length == 0 or
+            rke2_selected_all_hosts | length == 0 or
             (
-              ((groups.get('rke2_servers', []) + groups.get('rke2_agents', [])) | unique)
-              | difference(groups.get('rke2_all', []))
+              rke2_selected_role_hosts
+              | difference(rke2_selected_all_hosts)
               | length
             ) == 0
           - >-
-            groups.get('rke2_all', []) | length == 0 or
+            rke2_selected_all_hosts | length == 0 or
             (
-              groups.get('rke2_all', [])
-              | difference(((groups.get('rke2_servers', []) + groups.get('rke2_agents', [])) | unique))
+              rke2_selected_all_hosts
+              | difference(rke2_selected_role_hosts)
               | length
             ) == 0
         fail_msg: >-
           This playbook requires an inventory with rke2_servers and optional
-          rke2_agents groups. If rke2_all is populated, it must contain exactly
-          the rke2_servers and rke2_agents hosts. For BCIT TLU infrastructure, run
-          from this repository root with the sibling ../ansible checkout
-          available, or pass a compatible inventory explicitly with -i.
+          rke2_agents groups. For the selected hosts, populated rke2_all entries
+          must contain exactly the selected rke2_servers and rke2_agents hosts.
+          For BCIT TLU infrastructure, run from this repository root with the
+          sibling ../ansible checkout available, or pass a compatible inventory
+          explicitly with -i.
+      vars:
+        rke2_validation_hosts: "{{ ansible_play_hosts_all | difference(['localhost']) }}"
+        rke2_selected_role_hosts: >-
+          {{
+            ((groups.get('rke2_servers', []) + groups.get('rke2_agents', [])) | unique)
+            | intersect(rke2_validation_hosts)
+          }}
+        rke2_selected_all_hosts: "{{ groups.get('rke2_all', []) | intersect(rke2_validation_hosts) }}"
       run_once: true
       delegate_to: localhost
 
