@@ -1,15 +1,48 @@
 ---
-- name: Scope RKE2 testing inventory groups to the active play
+- name: Discover RKE2 cluster groups
   ansible.builtin.set_fact:
-    rke2_active_servers: "{{ ansible_play_hosts_all | intersect(groups.get('rke2_servers', [])) }}"
+    rke2_discovered_cluster_groups: >-
+      {{
+        rke2_cluster_groups
+        if (rke2_cluster_groups | length > 0)
+        else (groups.keys() | select('match', rke2_cluster_group_pattern) | list)
+      }}
 
-- name: Require an active RKE2 server for testing
+- name: Initialize active RKE2 cluster groups
+  ansible.builtin.set_fact:
+    rke2_active_cluster_groups: []
+
+- name: Find RKE2 cluster groups touched by this play
+  ansible.builtin.set_fact:
+    rke2_active_cluster_groups: "{{ rke2_active_cluster_groups + [item] }}"
+  loop: "{{ rke2_discovered_cluster_groups }}"
+  when:
+    - ansible_play_hosts_all | intersect(groups.get(item, [])) | length > 0
+
+- name: Require exactly one active RKE2 cluster for testing
   ansible.builtin.assert:
     that:
-      - rke2_active_servers | length > 0
+      - rke2_active_cluster_groups | length == 1
     fail_msg: >-
-      No rke2_servers hosts are active in this test play. Check the shared
-      inventory or the --limit expression before running testing.yml.
+      This test play spans {{ rke2_active_cluster_groups | length }} RKE2
+      cluster groups ({{ rke2_active_cluster_groups | join(', ') }}). Limit the
+      run to exactly one cluster group, host, or host subset before running
+      testing.yml. If your inventory uses different cluster group names, set
+      rke2_cluster_groups or rke2_cluster_group_pattern.
+  run_once: true
+
+- name: Scope RKE2 testing inventory groups to the target cluster
+  ansible.builtin.set_fact:
+    rke2_target_cluster_group: "{{ rke2_active_cluster_groups[0] }}"
+    rke2_target_servers: "{{ groups.get('rke2_servers', []) | intersect(groups.get(rke2_active_cluster_groups[0], [])) }}"
+
+- name: Require an RKE2 server in the target test cluster
+  ansible.builtin.assert:
+    that:
+      - rke2_target_servers | length > 0
+    fail_msg: >-
+      The target cluster group {{ rke2_target_cluster_group }} does not contain
+      any hosts from rke2_servers.
   run_once: true
 
 - name: Basic Infra tests
@@ -17,7 +50,7 @@
 
 - name: Manifest test
   ansible.builtin.include_tasks: manifest_test.yml
-  when: inventory_hostname == rke2_active_servers[0]
+  when: inventory_hostname == rke2_target_servers[0]
 
 - name: Basic kubectl tests
   ansible.builtin.include_tasks: kubectl_basic.yml

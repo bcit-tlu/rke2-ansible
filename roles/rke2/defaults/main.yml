@@ -42,3 +42,5 @@ rke2_version_majmin: ""
 rke2_version_rpm: ""
 rke2_package_state: "installed"
 rke2_systemd_env_config_file_path: ""
+rke2_cluster_groups: []
+rke2_cluster_group_pattern: "^(rke2_cluster|cluster[0-9]+)$"

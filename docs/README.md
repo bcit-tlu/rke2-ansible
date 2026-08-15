@@ -76,6 +76,13 @@ rke2_cluster:
 ```  
 This is the simplest possible inventory file and will deploy the latest available version of RKE2 with only default settings.
 
+The playbook uses cluster groups to keep bootstrap, token, and manifest
+selection scoped to one RKE2 cluster at a time. Single-cluster inventories should
+use the `rke2_cluster` group shown above. Shared multi-cluster inventories should
+limit each run to one cluster group or host subset and use cluster group names
+that match `clusterNN`, or set `rke2_cluster_groups` /
+`rke2_cluster_group_pattern` explicitly.
+
 
 ## Structuring Your Variable Files  
 Configurations and variables can become lengthy and unwieldy, as a general note of advice it is best to move variables into a `group_vars` folder.

@@ -85,21 +85,25 @@ the docs folder for examples (`basic_sample_inventory` or
 > [!NOTE]  
 > More detailed information can be found [here](./docs/README.md)
 
-Start provisioning the BCIT TLU cluster using the shared inventory:
-```bash
-ansible-playbook site.yml -b
-```  
-
-To target a specific cluster or host from the shared inventory, use `--limit`:
+Start provisioning a BCIT TLU cluster from the shared inventory by selecting a
+single target cluster or host subset with `--limit`:
 
 ```bash
 ansible-playbook site.yml -b --limit cluster04
 ansible-playbook site.yml -b --limit prod-manager-13.ltc.bcit.ca
+ansible-playbook site.yml -b --limit prod-worker-08.ltc.bcit.ca
 ```
 
-The playbook scopes bootstrap server and token selection to the active play
-hosts, so a cluster limit such as `cluster04` is safe with the shared
-multi-cluster inventory.
+Do not run `ansible-playbook site.yml -b` without a limit against the BCIT TLU
+shared inventory. It contains multiple independent RKE2 clusters, and this
+playbook intentionally fails if a run spans more than one cluster group.
+
+The playbook discovers the target cluster group from the limited hosts, then
+uses that cluster's ordered `rke2_servers` list for bootstrap, manifests, token
+retrieval, and join URLs. This allows worker-only or single-host maintenance
+runs to delegate token lookup to an existing server in the same target cluster.
+Inventories that do not use `rke2_cluster` or `clusterNN` group names should set
+`rke2_cluster_groups` or `rke2_cluster_group_pattern`.
 
 
 Tarball Install/Air-Gap Install  
