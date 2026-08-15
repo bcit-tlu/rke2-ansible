@@ -69,7 +69,6 @@
         )
       )
       | join(':')
-      | default('all:!all', true)
     }}
   any_errors_fatal: true
   become: true

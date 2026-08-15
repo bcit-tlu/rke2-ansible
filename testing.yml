@@ -68,7 +68,6 @@
         )
       )
       | join(':')
-      | default('all:!all', true)
     }}
   become: true
   roles:
