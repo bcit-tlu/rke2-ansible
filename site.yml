@@ -8,24 +8,11 @@
       ansible.builtin.assert:
         that:
           - groups.get('rke2_servers', []) | length > 0
-          - >-
-            rke2_selected_role_hosts | length == 0 or
-            (
-              rke2_selected_role_hosts
-              | difference(rke2_selected_all_hosts)
-              | length
-            ) == 0
-          - >-
-            rke2_selected_all_hosts | length == 0 or
-            (
-              rke2_selected_all_hosts
-              | difference(rke2_selected_role_hosts)
-              | length
-            ) == 0
+          - rke2_selected_role_hosts | length > 0
         fail_msg: >-
           This playbook requires an inventory with rke2_servers and optional
-          rke2_agents groups. For the selected hosts, populated rke2_all entries
-          must contain exactly the selected rke2_servers and rke2_agents hosts.
+          rke2_agents groups, and the run must select at least one RKE2 server
+          or agent host (for example, with --limit clusterNN).
           For BCIT TLU infrastructure, run from this repository root with the
           sibling ../ansible checkout available, or pass a compatible inventory
           explicitly with -i.
@@ -36,27 +23,16 @@
             ((groups.get('rke2_servers', []) + groups.get('rke2_agents', [])) | unique)
             | intersect(rke2_validation_hosts)
           }}
-        rke2_selected_all_hosts: "{{ groups.get('rke2_all', []) | intersect(rke2_validation_hosts) }}"
       run_once: true
       delegate_to: localhost
 
 - name: RKE2 play
   hosts: >-
     {{
-      'rke2_all'
-      if (groups.get('rke2_all', []) | length > 0)
-      else (
-        'rke2_servers:rke2_agents'
-        if (
-          groups.get('rke2_servers', []) | length > 0 and
-          groups.get('rke2_agents', []) | length > 0
-        )
-        else (
-          'rke2_servers'
-          if (groups.get('rke2_servers', []) | length > 0)
-          else 'all:!all'
-        )
-      )
+      (
+        (['rke2_servers'] if groups.get('rke2_servers', []) | length > 0 else [])
+        + (['rke2_agents'] if groups.get('rke2_agents', []) | length > 0 else [])
+      ) | join(':') or 'all:!all'
     }}
   any_errors_fatal: true
   gather_facts: false
