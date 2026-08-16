@@ -17,11 +17,10 @@
           sibling ../ansible checkout available, or pass a compatible inventory
           explicitly with -i.
       vars:
-        rke2_validation_hosts: "{{ ansible_play_hosts_all | difference(['localhost']) }}"
         rke2_selected_role_hosts: >-
           {{
             ((groups.get('rke2_servers', []) + groups.get('rke2_agents', [])) | unique)
-            | intersect(rke2_validation_hosts)
+            | intersect(ansible_play_hosts_all)
           }}
       run_once: true
       delegate_to: localhost
