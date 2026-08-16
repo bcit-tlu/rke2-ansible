@@ -3,8 +3,18 @@
 
 - name: Scope worker labelling to the selected hosts
   ansible.builtin.set_fact:
-    rke2_worker_labels_servers: "{{ groups.get('rke2_servers', []) | intersect(ansible_play_hosts_all) | sort }}"
-    rke2_worker_labels_workers: "{{ groups.get('rke2_agents', []) | intersect(ansible_play_hosts_all) | sort }}"
+    rke2_worker_labels_servers: >-
+      {{
+        groups.get('rke2_servers', [])
+        | select('in', ansible_play_hosts_all)
+        | list
+      }}
+    rke2_worker_labels_workers: >-
+      {{
+        groups.get('rke2_agents', [])
+        | select('in', ansible_play_hosts_all)
+        | list
+      }}
   run_once: true
 
 - name: Label selected worker nodes from the first selected server
@@ -21,13 +31,61 @@
           - --kubeconfig
           - "{{ rke2_worker_labels_kubeconfig }}"
           - get
-          - node
-          - "{{ item }}"
+          - nodes
           - -o
           - json
-      loop: "{{ rke2_worker_labels_workers }}"
-      register: rke2_worker_labels_node_objects
+      register: rke2_worker_labels_nodes
       changed_when: false
+      check_mode: false
+
+    - name: Build worker node lookup records
+      ansible.builtin.set_fact:
+        rke2_worker_labels_node_records: >-
+          {{
+            rke2_worker_labels_node_records | default([]) + [{
+              'name': item.metadata.name,
+              'hostname': (item.metadata.labels | default({})).get('kubernetes.io/hostname', ''),
+              'name_short': item.metadata.name | regex_replace('\..*$', ''),
+              'hostname_short': (item.metadata.labels | default({})).get('kubernetes.io/hostname', '')
+                | regex_replace('\..*$', ''),
+              'labels': item.metadata.labels | default({})
+            }]
+          }}
+      loop: "{{ (rke2_worker_labels_nodes.stdout | from_json)['items'] | default([]) }}"
+
+    - name: Resolve selected workers to Kubernetes nodes
+      ansible.builtin.set_fact:
+        rke2_worker_labels_resolved_nodes: >-
+          {{
+            rke2_worker_labels_resolved_nodes | default([]) + [{
+              'inventory_hostname': item,
+              'node': (
+                (
+                  (rke2_worker_labels_node_records
+                   | selectattr('name', 'equalto', item)
+                   | list)
+                  + (rke2_worker_labels_node_records
+                     | selectattr('hostname', 'equalto', item)
+                     | list)
+                  + (rke2_worker_labels_node_records
+                     | selectattr('name_short', 'equalto', item | regex_replace('\..*$', ''))
+                     | list)
+                  + (rke2_worker_labels_node_records
+                     | selectattr('hostname_short', 'equalto', item | regex_replace('\..*$', ''))
+                     | list)
+                ) | first | default({}, true)
+              )
+            }]
+          }}
+      loop: "{{ rke2_worker_labels_workers }}"
+
+    - name: Warn about workers missing from the Kubernetes node list
+      ansible.builtin.debug:
+        msg: >-
+          Skipping worker {{ item.inventory_hostname }} because no matching
+          Kubernetes node was found.
+      loop: "{{ rke2_worker_labels_resolved_nodes }}"
+      when: item.node | length == 0
 
     - name: Apply the worker role label to worker nodes
       ansible.builtin.command:
@@ -37,11 +95,11 @@
           - "{{ rke2_worker_labels_kubeconfig }}"
           - label
           - node
-          - "{{ item.item }}"
+          - "{{ item.node.name }}"
           - "{{ rke2_worker_labels_key }}={{ rke2_worker_labels_value }}"
           - --overwrite
-      loop: "{{ rke2_worker_labels_node_objects.results }}"
+      loop: "{{ rke2_worker_labels_resolved_nodes }}"
       changed_when: true
       when: >-
-        ((item.stdout | from_json).metadata.labels | default({})).get(rke2_worker_labels_key, '')
-        != rke2_worker_labels_value
+        item.node | length > 0 and
+        item.node.labels.get(rke2_worker_labels_key, '') != rke2_worker_labels_value
