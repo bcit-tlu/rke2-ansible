@@ -1,0 +1,47 @@
+---
+# Apply the worker label through the API because kubelets cannot self-apply it.
+
+- name: Scope worker labelling to the selected hosts
+  ansible.builtin.set_fact:
+    rke2_worker_labels_servers: "{{ groups.get('rke2_servers', []) | intersect(ansible_play_hosts_all) | sort }}"
+    rke2_worker_labels_workers: "{{ groups.get('rke2_agents', []) | intersect(ansible_play_hosts_all) | sort }}"
+  run_once: true
+
+- name: Label selected worker nodes from the first selected server
+  run_once: true
+  delegate_to: "{{ rke2_worker_labels_servers | first | default(inventory_hostname, true) }}"
+  when:
+    - rke2_worker_labels_servers | length > 0
+    - rke2_worker_labels_workers | length > 0
+  block:
+    - name: Read worker node objects
+      ansible.builtin.command:
+        argv:
+          - "{{ rke2_worker_labels_kubectl }}"
+          - --kubeconfig
+          - "{{ rke2_worker_labels_kubeconfig }}"
+          - get
+          - node
+          - "{{ item }}"
+          - -o
+          - json
+      loop: "{{ rke2_worker_labels_workers }}"
+      register: rke2_worker_labels_node_objects
+      changed_when: false
+
+    - name: Apply the worker role label to worker nodes
+      ansible.builtin.command:
+        argv:
+          - "{{ rke2_worker_labels_kubectl }}"
+          - --kubeconfig
+          - "{{ rke2_worker_labels_kubeconfig }}"
+          - label
+          - node
+          - "{{ item.item }}"
+          - "{{ rke2_worker_labels_key }}={{ rke2_worker_labels_value }}"
+          - --overwrite
+      loop: "{{ rke2_worker_labels_node_objects.results }}"
+      changed_when: true
+      when: >-
+        ((item.stdout | from_json).metadata.labels | default({})).get(rke2_worker_labels_key, '')
+        != rke2_worker_labels_value

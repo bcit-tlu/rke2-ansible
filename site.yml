@@ -38,3 +38,17 @@
   become: true
   roles:
     - role: rke2
+
+- name: RKE2 worker role labels play
+  hosts: >-
+    {{
+      (
+        (['rke2_servers'] if groups.get('rke2_servers', []) | length > 0 else [])
+        + (['rke2_agents'] if groups.get('rke2_agents', []) | length > 0 else [])
+      ) | join(':') or 'all:!all'
+    }}
+  any_errors_fatal: true
+  gather_facts: false
+  become: true
+  roles:
+    - role: rke2_worker_labels
