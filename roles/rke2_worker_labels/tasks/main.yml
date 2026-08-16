@@ -38,11 +38,15 @@
       changed_when: false
       check_mode: false
 
+    - name: Initialise worker node lookup records
+      ansible.builtin.set_fact:
+        rke2_worker_labels_node_records: []
+
     - name: Build worker node lookup records
       ansible.builtin.set_fact:
         rke2_worker_labels_node_records: >-
           {{
-            rke2_worker_labels_node_records | default([]) + [{
+            rke2_worker_labels_node_records + [{
               'name': item.metadata.name,
               'hostname': (item.metadata.labels | default({})).get('kubernetes.io/hostname', ''),
               'name_short': item.metadata.name | regex_replace('\..*$', ''),
@@ -53,11 +57,15 @@
           }}
       loop: "{{ (rke2_worker_labels_nodes.stdout | from_json)['items'] | default([]) }}"
 
+    - name: Initialise resolved worker nodes
+      ansible.builtin.set_fact:
+        rke2_worker_labels_resolved_nodes: []
+
     - name: Resolve selected workers to Kubernetes nodes
       ansible.builtin.set_fact:
         rke2_worker_labels_resolved_nodes: >-
           {{
-            rke2_worker_labels_resolved_nodes | default([]) + [{
+            rke2_worker_labels_resolved_nodes + [{
               'inventory_hostname': item,
               'node': (
                 (
