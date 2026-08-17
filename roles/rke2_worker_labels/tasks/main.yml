@@ -1,0 +1,168 @@
+---
+# Apply the worker label through the API because kubelets cannot self-apply it.
+
+- name: Scope worker labelling to the selected hosts
+  ansible.builtin.set_fact:
+    rke2_worker_labels_servers: >-
+      {{
+        groups.get('rke2_servers', [])
+        | select('in', ansible_play_hosts_all)
+        | list
+      }}
+    rke2_worker_labels_workers: >-
+      {{
+        groups.get('rke2_agents', [])
+        | select('in', ansible_play_hosts_all)
+        | list
+      }}
+  run_once: true
+
+- name: Notice when worker labelling is skipped without a server
+  ansible.builtin.debug:
+    msg: >-
+      Skipping worker labelling because this run selected workers but no
+      RKE2 server.
+  run_once: true
+  when:
+    - rke2_worker_labels_workers | length > 0
+    - rke2_worker_labels_servers | length == 0
+
+- name: Label selected worker nodes from the first selected server
+  run_once: true
+  delegate_to: "{{ rke2_worker_labels_servers | first | default(inventory_hostname, true) }}"
+  when:
+    - rke2_worker_labels_servers | length > 0
+    - rke2_worker_labels_workers | length > 0
+  block:
+    - name: Read worker node objects
+      ansible.builtin.command:
+        argv:
+          - "{{ rke2_worker_labels_kubectl }}"
+          - --kubeconfig
+          - "{{ rke2_worker_labels_kubeconfig }}"
+          - get
+          - nodes
+          - -o
+          - json
+      register: rke2_worker_labels_nodes
+      changed_when: false
+      check_mode: false
+
+    - name: Initialise worker node lookup records
+      ansible.builtin.set_fact:
+        rke2_worker_labels_node_records: []
+
+    - name: Build worker node lookup records
+      ansible.builtin.set_fact:
+        rke2_worker_labels_node_records: >-
+          {{
+            rke2_worker_labels_node_records + [{
+              'name': item.metadata.name,
+              'hostname': (item.metadata.labels | default({})).get('kubernetes.io/hostname', ''),
+              'name_short': item.metadata.name | regex_replace('\..*$', ''),
+              'hostname_short': (item.metadata.labels | default({})).get('kubernetes.io/hostname', '')
+                | regex_replace('\..*$', ''),
+              'labels': item.metadata.labels | default({})
+            }]
+          }}
+      loop: "{{ (rke2_worker_labels_nodes.stdout | from_json).get('items', []) }}"
+
+    - name: Initialise worker node matches
+      ansible.builtin.set_fact:
+        rke2_worker_labels_worker_matches: []
+
+    - name: Find exact and short-name worker node matches
+      ansible.builtin.set_fact:
+        rke2_worker_labels_worker_matches: >-
+          {{
+            rke2_worker_labels_worker_matches + [{
+              'inventory_hostname': item,
+              'exact': (
+                (
+                  (rke2_worker_labels_node_records
+                   | selectattr('name', 'equalto', item)
+                   | list)
+                  + (rke2_worker_labels_node_records
+                     | selectattr('hostname', 'equalto', item)
+                     | list)
+                ) | unique(attribute='name') | list
+              ),
+              'short': (
+                []
+                if (item | regex_search('^[0-9]{1,3}(\.[0-9]{1,3}){3}$')) or ':' in item
+                else (
+                  (rke2_worker_labels_node_records
+                   | selectattr('name_short', 'equalto', item | regex_replace('\..*$', ''))
+                   | list)
+                  + (rke2_worker_labels_node_records
+                     | selectattr('hostname_short', 'equalto', item | regex_replace('\..*$', ''))
+                     | list)
+                ) | unique(attribute='name') | list
+              )
+            }]
+          }}
+      loop: "{{ rke2_worker_labels_workers }}"
+
+    - name: Initialise resolved worker nodes
+      ansible.builtin.set_fact:
+        rke2_worker_labels_resolved_nodes: []
+
+    - name: Resolve selected workers to Kubernetes nodes
+      ansible.builtin.set_fact:
+        rke2_worker_labels_resolved_nodes: >-
+          {{
+            rke2_worker_labels_resolved_nodes + [{
+              'inventory_hostname': item.inventory_hostname,
+              'node': (
+                (item.exact | first)
+                if item.exact | length > 0
+                else (
+                  (item.short | first)
+                  if (item.short | map(attribute='name') | unique | list | length) == 1
+                  else {}
+                )
+              ),
+              'ambiguous': (
+                item.exact | length == 0 and
+                (item.short | map(attribute='name') | unique | list | length) > 1
+              ),
+              'short': item.short
+            }]
+          }}
+      loop: "{{ rke2_worker_labels_worker_matches }}"
+
+    - name: Warn about workers missing from the Kubernetes node list
+      ansible.builtin.debug:
+        msg: >-
+          Skipping worker {{ item.inventory_hostname }} because no matching
+          Kubernetes node was found.
+      loop: "{{ rke2_worker_labels_resolved_nodes }}"
+      when:
+        - item.node | length == 0
+        - not item.ambiguous
+
+    - name: Warn about workers with ambiguous short-name matches
+      ansible.builtin.debug:
+        msg: >-
+          Skipping worker {{ item.inventory_hostname }} because short-name
+          matching found multiple Kubernetes nodes:
+          {{ item.short | map(attribute='name') | unique | join(', ') }}.
+      loop: "{{ rke2_worker_labels_resolved_nodes }}"
+      when: item.ambiguous
+
+    - name: Apply the worker role label to worker nodes
+      ansible.builtin.command:
+        argv:
+          - "{{ rke2_worker_labels_kubectl }}"
+          - --kubeconfig
+          - "{{ rke2_worker_labels_kubeconfig }}"
+          - label
+          - node
+          - "{{ item.node.name }}"
+          - "{{ rke2_worker_labels_key }}={{ rke2_worker_labels_value }}"
+          - --overwrite
+      loop: "{{ rke2_worker_labels_resolved_nodes }}"
+      changed_when: true
+      when: >-
+        item.node | length > 0 and
+        item.node.labels.get(rke2_worker_labels_key, '') != rke2_worker_labels_value

@@ -59,6 +59,12 @@ The default `ansible.cfg` points at `../ansible/inventory/hosts.yml`, and
 without referencing groups that are absent or empty. `group_vars/rke2_all`
 still applies through group membership, and each run must select at least one
 RKE2 server or agent host.
+After the RKE2 play, `site.yml` labels the selected `rke2_agents` nodes with
+`node-role.kubernetes.io/worker=worker` through the Kubernetes API from the
+first selected server, because kubelets cannot self-apply
+`node-role.kubernetes.io` labels via the RKE2 `node-label` config. A run that
+selects only agent hosts skips the labelling step, so include at least one
+server (for example, `--limit clusterNN`) when worker labels must be applied.
 Explicit non-production inventories can still use the upstream-style
 `rke2_cluster` parent group when passed with `-i`, as long as they also define
 the `rke2_servers` and optional `rke2_agents` child groups. RKE2 node
