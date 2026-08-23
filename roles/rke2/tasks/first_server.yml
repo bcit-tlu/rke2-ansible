@@ -1,7 +1,13 @@
 ---
 
 - name: Include task file config.yml
-  ansible.builtin.include_tasks: config.yml
+  ansible.builtin.include_tasks:
+    file: config.yml
+    apply:
+      tags:
+        - rke2_config
+  tags:
+    - rke2_config
 
 - name: Flush_handlers
   ansible.builtin.meta: flush_handlers

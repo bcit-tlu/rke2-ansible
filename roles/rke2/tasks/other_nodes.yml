@@ -7,6 +7,8 @@
     state: present
     timeout: "300"
   changed_when: false
+  when:
+    - not (rke2_config_only | default(false) | bool)
 
 # - name: Include task file add-manifest-addons.yml
 #   ansible.builtin.include_tasks: add-manifest-addons.yml
@@ -15,7 +17,13 @@
 #     - manifest_config_file_path | length > 0
 
 - name: Generate config.yml on other nodes
-  ansible.builtin.include_tasks: config.yml
+  ansible.builtin.include_tasks:
+    file: config.yml
+    apply:
+      tags:
+        - rke2_config
+  tags:
+    - rke2_config
 
 - name: Flush_handlers
   ansible.builtin.meta: flush_handlers
@@ -25,3 +33,5 @@
     state: started
     enabled: true
     name: "{{ service_name }}"
+  when:
+    - not (rke2_config_only | default(false) | bool)

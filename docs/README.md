@@ -3,6 +3,7 @@
 - [Basic Usage](#basic-usage)
   - [Cloning](#cloning)
   - [Importing](#importing)
+  - [Applying RKE2 configuration changes](#applying-rke2-configuration-changes)
 - [Defining Your Cluster](#defining-your-cluster)
   - [Minimal Cluster Inventory](#minimal-cluster-inventory)
   - [Structuring Your Variable Files](#structuring-your-variable-files)
@@ -32,6 +33,22 @@ There are two methods for consuming this repository, one is to simply clone the 
 > `ansible` repository. Run playbooks from the `rke2-ansible` repository root so
 > `ansible.cfg` can resolve `../ansible/inventory/hosts.yml`, or pass another
 > compatible inventory explicitly with `-i`.
+
+## Applying RKE2 configuration changes
+
+Use the config-only entrypoint to preview and apply changes from
+`cluster_rke2_config`, `group_rke2_config`, or `host_rke2_config`. Always scope
+the run to one cluster group or host subset:
+
+```bash
+ansible-playbook configure_rke2.yml --check --diff --tags rke2_config --limit cluster04
+ansible-playbook configure_rke2.yml --tags rke2_config --limit cluster04
+```
+
+The role asserts the selected hosts belong to exactly one cluster. Servers are
+processed one at a time; after a changed configuration restarts RKE2, the
+server must become Ready before the next server is touched. The config-only
+path skips installation, upgrades, addons, utilities, and node joining.
 
 ## Cloning  
 The simplest method for using this repository (as detailed in the main README.md) is to simply clone the repository and copy the sample inventory. 
