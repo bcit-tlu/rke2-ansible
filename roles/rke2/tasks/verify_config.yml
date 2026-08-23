@@ -47,7 +47,8 @@
     host: "{{ hostvars[inventory_hostname].ip | default(ansible_host | default(inventory_hostname), true) }}"
     port: 2381
     state: started
-    timeout: 10
+    delay: "{{ rke2_config_listener_delay }}"
+    timeout: "{{ rke2_config_listener_timeout }}"
   when:
     - not ansible_check_mode
     - inventory_hostname in groups['rke2_servers']
@@ -58,7 +59,8 @@
     host: "{{ hostvars[inventory_hostname].ip | default(ansible_host | default(inventory_hostname), true) }}"
     port: 10257
     state: started
-    timeout: 10
+    delay: "{{ rke2_config_listener_delay }}"
+    timeout: "{{ rke2_config_listener_timeout }}"
   when:
     - not ansible_check_mode
     - inventory_hostname in groups['rke2_servers']
@@ -73,7 +75,8 @@
     host: "{{ hostvars[inventory_hostname].ip | default(ansible_host | default(inventory_hostname), true) }}"
     port: 10259
     state: started
-    timeout: 10
+    delay: "{{ rke2_config_listener_delay }}"
+    timeout: "{{ rke2_config_listener_timeout }}"
   when:
     - not ansible_check_mode
     - inventory_hostname in groups['rke2_servers']
