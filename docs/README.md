@@ -45,10 +45,11 @@ ansible-playbook rke2_config.yml --check --diff --tags rke2_config --limit clust
 ansible-playbook rke2_config.yml --tags rke2_config --limit cluster04
 ```
 
-The role asserts the selected hosts belong to exactly one cluster. Servers are
-processed one at a time; after a changed configuration restarts RKE2, the
-server must become Ready before the next server is touched. The config-only
-path skips installation, upgrades, addons, utilities, and node joining.
+The role asserts the selected hosts belong to exactly one cluster. Hosts are
+processed one at a time; after a changed configuration restarts RKE2, a server
+must become Ready and an agent's service must be running before the next host is
+touched. The config-only path skips installation, upgrades, addons, utilities,
+and node joining.
 
 ## Cloning  
 The simplest method for using this repository (as detailed in the main README.md) is to simply clone the repository and copy the sample inventory. 

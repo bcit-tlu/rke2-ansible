@@ -260,6 +260,22 @@
   tags:
     - rke2_config
 
+- name: Check configured RKE2 agent service readiness
+  ansible.builtin.service_facts:
+  register: rke2_agent_service_facts
+  until: >-
+    (rke2_agent_service_facts.ansible_facts.services | default({})).get(
+      service_name ~ '.service', {}).get('state', '') == 'running'
+  retries: 30
+  delay: 10
+  changed_when: false
+  when:
+    - rke2_config_only | default(false) | bool
+    - inventory_hostname not in groups['rke2_servers']
+    - not ansible_check_mode
+  tags:
+    - rke2_config
+
 - name: Verify RKE2 configuration
   ansible.builtin.include_tasks:
     file: verify_config.yml
