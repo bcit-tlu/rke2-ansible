@@ -13,7 +13,7 @@
   become: true
   vars:
     rke2_config_only: true
-  tasks:
+  pre_tasks:
     - name: Require the config tag  # noqa run-once[task]
       ansible.builtin.assert:
         that:
