@@ -125,7 +125,11 @@
     - rke2_install_tarball_url == ""
 
 - name: Start check_node_ready.yml
-  ansible.builtin.include_tasks: check_node_ready.yml
+  ansible.builtin.include_tasks:
+    file: check_node_ready.yml
+    apply:
+      tags:
+        - always
   vars:
     check_node_ready_timeout: 2
     check_node_ready_retries: 2
@@ -201,7 +205,11 @@
     - rke2_config
 
 - name: Save_generated_token.yml
-  ansible.builtin.include_tasks: save_generated_token.yml
+  ansible.builtin.include_tasks:
+    file: save_generated_token.yml
+    apply:
+      tags:
+        - rke2_config
   vars:
     token_source_node: "{{ rke2_target_servers[0] }}"
   when:
@@ -211,7 +219,11 @@
 
 # is the ready_servers array is > 0, we assume it's an established cluster and treat all nodes equally (no need for initial server procedure)
 - name: Save_generated_token.yml
-  ansible.builtin.include_tasks: save_generated_token.yml
+  ansible.builtin.include_tasks:
+    file: save_generated_token.yml
+    apply:
+      tags:
+        - rke2_config
   vars:
     token_source_node: "{{ ready_servers[0] }}"
   when:
@@ -224,8 +236,19 @@
   tags:
     - rke2_config
 
+- name: Flush config-only RKE2 handlers
+  ansible.builtin.meta: flush_handlers
+  when:
+    - rke2_config_only | default(false) | bool
+  tags:
+    - rke2_config
+
 - name: Check configured RKE2 server readiness
-  ansible.builtin.include_tasks: check_node_ready.yml
+  ansible.builtin.include_tasks:
+    file: check_node_ready.yml
+    apply:
+      tags:
+        - rke2_config
   vars:
     check_node_ready_timeout: 300
     check_node_ready_retries: 30
@@ -238,7 +261,11 @@
     - rke2_config
 
 - name: Verify RKE2 configuration
-  ansible.builtin.include_tasks: verify_config.yml
+  ansible.builtin.include_tasks:
+    file: verify_config.yml
+    apply:
+      tags:
+        - rke2_config
   when:
     - rke2_config_only | default(false) | bool
   tags:

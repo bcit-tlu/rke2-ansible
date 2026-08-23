@@ -41,8 +41,8 @@ Use the config-only entrypoint to preview and apply changes from
 the run to one cluster group or host subset:
 
 ```bash
-ansible-playbook configure_rke2.yml --check --diff --tags rke2_config --limit cluster04
-ansible-playbook configure_rke2.yml --tags rke2_config --limit cluster04
+ansible-playbook rke2_config.yml --check --diff --tags rke2_config --limit cluster04
+ansible-playbook rke2_config.yml --tags rke2_config --limit cluster04
 ```
 
 The role asserts the selected hosts belong to exactly one cluster. Servers are
