@@ -27,6 +27,21 @@
     - not ansible_check_mode
     - rke2_config | length > 0
 
+- name: Normalize RKE2 component arguments
+  ansible.builtin.set_fact:
+    rke2_controller_manager_args: >-
+      {{
+        [rke2_config.get('kube-controller-manager-arg')]
+        if rke2_config.get('kube-controller-manager-arg', []) is string
+        else rke2_config.get('kube-controller-manager-arg', [])
+      }}
+    rke2_scheduler_args: >-
+      {{
+        [rke2_config.get('kube-scheduler-arg')]
+        if rke2_config.get('kube-scheduler-arg', []) is string
+        else rke2_config.get('kube-scheduler-arg', [])
+      }}
+
 - name: Verify etcd metrics listener
   ansible.builtin.wait_for:
     host: "{{ hostvars[inventory_hostname].ip | default(ansible_host | default(inventory_hostname), true) }}"
@@ -48,7 +63,7 @@
     - not ansible_check_mode
     - inventory_hostname in groups['rke2_servers']
     - >-
-      rke2_config.get('kube-controller-manager-arg', [])
+      rke2_controller_manager_args
       | select('match', '^bind-address=(?!127(?:\.[0-9]{1,3}){3}$|localhost$|::1$).+')
       | list
       | length > 0
@@ -63,7 +78,7 @@
     - not ansible_check_mode
     - inventory_hostname in groups['rke2_servers']
     - >-
-      rke2_config.get('kube-scheduler-arg', [])
+      rke2_scheduler_args
       | select('match', '^bind-address=(?!127(?:\.[0-9]{1,3}){3}$|localhost$|::1$).+')
       | list
       | length > 0
