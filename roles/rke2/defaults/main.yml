@@ -38,6 +38,12 @@ rke2_config: {}
 rke2_kubelet_config: {}
 rke2_kubelet_config_dir: "/var/lib/rancher/rke2/agent/etc/kubelet.conf.d"
 rke2_kubelet_config_dropin_filename: "50-ansible-managed.conf"
+# RKE2 only merges additional files placed in --config-dir from v1.32.0+rke2r1
+# onward (see rancher/rke2#4043); on older releases our drop-in is written but
+# silently ignored by the kubelet. config.yml fails fast when
+# rke2_kubelet_config is set and the resolved rke2_install_version is older
+# than this.
+rke2_kubelet_config_min_version: "1.32"
 rke2_config_listener_timeout: 300
 rke2_config_listener_delay: 5
 rke2_metrics_running: false

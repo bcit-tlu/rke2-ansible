@@ -218,6 +218,16 @@ patch, so individual map keys combine and unmentioned keys keep their existing v
 Command line flags are re-parsed after the merge and bind a whole map at once, so
 `kubelet-arg: eviction-hard=...` would silently discard the thresholds RKE2 already sets.
 
+**Requires RKE2 v1.32.0+rke2r1 or newer.** Earlier releases start the kubelet with
+`--config-dir` but do not merge extra files placed in that directory (see
+[rancher/rke2#4043](https://github.com/rancher/rke2/issues/4043)), so a drop-in would be
+written to disk and never applied. If `rke2_kubelet_config` is set and the resolved
+`rke2_install_version` predates `1.32`, the role fails with a clear error instead of
+silently no-op'ing; override `rke2_kubelet_config_min_version` only if you have verified
+drop-in support on your target release. The version can't be checked ahead of time for
+`latest`/local-tarball installs, so pin an explicit `rke2_install_version` when using this
+feature to get the safety check.
+
 #### Example
 
 Add an inode eviction threshold without disturbing RKE2's byte-based thresholds:

@@ -7,6 +7,10 @@ venv/
 test_inventory*
 inventory*
 
+# ansible-galaxy/ansible-lint auto-install collections here when no
+# collections_path is configured; never commit them.
+.ansible/
+
 sample_files/tarball_install/*
 !sample_files/tarball_install/README.md
 
