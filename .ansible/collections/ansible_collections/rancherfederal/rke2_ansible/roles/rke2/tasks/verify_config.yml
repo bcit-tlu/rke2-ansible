@@ -1,0 +1,87 @@
+---
+- name: Read the managed RKE2 configuration
+  ansible.builtin.slurp:
+    src: /etc/rancher/rke2/config.yaml
+  register: rke2_config_file
+  when:
+    - not ansible_check_mode
+
+- name: Extract the managed RKE2 configuration block
+  ansible.builtin.set_fact:
+    rke2_config_managed_block: >-
+      {{
+        (rke2_config_file.content | b64decode)
+        | regex_search('(?s)# BEGIN ANSIBLE MANAGED BLOCK.*?# END ANSIBLE MANAGED BLOCK')
+        | default('', true)
+      }}
+  when:
+    - not ansible_check_mode
+
+- name: Verify resolved RKE2 config keys are present in the managed block
+  ansible.builtin.assert:
+    that:
+      - item ~ ':' in rke2_config_managed_block
+    fail_msg: "Resolved RKE2 config key {{ item }} is missing from the managed block."
+  loop: "{{ rke2_config.keys() | list }}"
+  when:
+    - not ansible_check_mode
+    - rke2_config | length > 0
+
+- name: Normalize RKE2 component arguments
+  ansible.builtin.set_fact:
+    rke2_controller_manager_args: >-
+      {{
+        [rke2_config.get('kube-controller-manager-arg')]
+        if rke2_config.get('kube-controller-manager-arg', []) is string
+        else rke2_config.get('kube-controller-manager-arg', [])
+      }}
+    rke2_scheduler_args: >-
+      {{
+        [rke2_config.get('kube-scheduler-arg')]
+        if rke2_config.get('kube-scheduler-arg', []) is string
+        else rke2_config.get('kube-scheduler-arg', [])
+      }}
+
+- name: Verify etcd metrics listener
+  ansible.builtin.wait_for:
+    host: "{{ hostvars[inventory_hostname].ip | default(ansible_host | default(inventory_hostname), true) }}"
+    port: 2381
+    state: started
+    delay: "{{ rke2_config_listener_delay }}"
+    timeout: "{{ rke2_config_listener_timeout }}"
+  when:
+    - not ansible_check_mode
+    - inventory_hostname in groups['rke2_servers']
+    - rke2_config.get('etcd-expose-metrics', false) | bool
+
+- name: Verify kube-controller-manager metrics listener
+  ansible.builtin.wait_for:
+    host: "{{ hostvars[inventory_hostname].ip | default(ansible_host | default(inventory_hostname), true) }}"
+    port: 10257
+    state: started
+    delay: "{{ rke2_config_listener_delay }}"
+    timeout: "{{ rke2_config_listener_timeout }}"
+  when:
+    - not ansible_check_mode
+    - inventory_hostname in groups['rke2_servers']
+    - >-
+      rke2_controller_manager_args
+      | select('match', '^bind-address=(?!127(?:\.[0-9]{1,3}){3}$|localhost$|::1$).+')
+      | list
+      | length > 0
+
+- name: Verify kube-scheduler metrics listener
+  ansible.builtin.wait_for:
+    host: "{{ hostvars[inventory_hostname].ip | default(ansible_host | default(inventory_hostname), true) }}"
+    port: 10259
+    state: started
+    delay: "{{ rke2_config_listener_delay }}"
+    timeout: "{{ rke2_config_listener_timeout }}"
+  when:
+    - not ansible_check_mode
+    - inventory_hostname in groups['rke2_servers']
+    - >-
+      rke2_scheduler_args
+      | select('match', '^bind-address=(?!127(?:\.[0-9]{1,3}){3}$|localhost$|::1$).+')
+      | list
+      | length > 0

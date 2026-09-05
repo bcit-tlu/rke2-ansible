@@ -1,0 +1,5 @@
+---
+rke2_worker_labels_kubectl: /var/lib/rancher/rke2/bin/kubectl
+rke2_worker_labels_kubeconfig: /etc/rancher/rke2/rke2.yaml
+rke2_worker_labels_key: node-role.kubernetes.io/worker
+rke2_worker_labels_value: worker
