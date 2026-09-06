@@ -32,6 +32,16 @@ rke2_versioned_yum_repo:
 rke2_kubelet_node_name:
   - "nodeNameNotFound"
 rke2_config: {}
+# Extra KubeletConfiguration fields merged over RKE2's generated
+# 00-rke2-defaults.conf drop-in. Empty by default so the role does not manage
+# kubelet configuration unless an inventory opts in. See config.yml.
+rke2_kubelet_config: {}
+# RKE2 only merges additional files placed in --config-dir from v1.32.0+rke2r1
+# onward (see rancher/rke2#4043); on older releases our drop-in is written but
+# silently ignored by the kubelet. config.yml fails fast when
+# rke2_kubelet_config is set and the resolved rke2_install_version is older
+# than this.
+rke2_kubelet_config_min_version: "1.32"
 rke2_config_listener_timeout: 300
 rke2_config_listener_delay: 5
 rke2_metrics_running: false

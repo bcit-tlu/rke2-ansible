@@ -11,6 +11,8 @@ STIG
 # Kubernetes
 Kubernetes
 [K|k]ubeconfig
+[K|k]ubelet
+[I|i]node
 
 # Linux
 [F|f]apolicyd

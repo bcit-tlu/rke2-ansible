@@ -199,6 +199,47 @@ group_rke2_config:
 ```
 
 
+### Customizing the Kubelet Configuration
+
+Some kubelet settings are only expressible as `KubeletConfiguration` fields and have no
+matching RKE2 `config.yaml` key. Define the `rke2_kubelet_config` variable to have the role
+manage a drop-in file at
+`/var/lib/rancher/rke2/agent/etc/kubelet.conf.d/50-ansible-managed.conf`. The role adds the
+required `apiVersion` and `kind`, so define only the fields you want to change. Setting the
+variable back to `{}` removes the file again. Both actions restart the RKE2 service.
+
+RKE2 starts the kubelet with `--config-dir` and writes only `00-rke2-defaults.conf` into that
+directory, leaving other files in place across restarts and upgrades. The `50-` prefix applies
+after RKE2's defaults and after the `10-`/`20-` names RKE2 reserves for
+`kubelet-arg: config=`/`config-dir=`.
+
+Prefer this over passing `kubelet-arg`. Drop-in files are merged as an RFC 7386 JSON merge
+patch, so individual map keys combine and unmentioned keys keep their existing values.
+Command line flags are re-parsed after the merge and bind a whole map at once, so
+`kubelet-arg: eviction-hard=...` would silently discard the thresholds RKE2 already sets.
+
+**Requires RKE2 v1.32.0+rke2r1 or newer.** Earlier releases start the kubelet with
+`--config-dir` but do not merge extra files placed in that directory (see
+[rancher/rke2#4043](https://github.com/rancher/rke2/issues/4043)), so a drop-in would be
+written to disk and never applied. If `rke2_kubelet_config` is set and the resolved
+`rke2_install_version` predates `1.32`, the role fails with a clear error instead of
+silently no-op'ing; override `rke2_kubelet_config_min_version` only if you have verified
+drop-in support on your target release. The version can't be checked ahead of time for
+`latest`/local-tarball installs, so pin an explicit `rke2_install_version` when using this
+feature to get the safety check.
+
+#### Example
+
+Add an inode eviction threshold without disturbing RKE2's byte-based thresholds:
+
+__group_vars/rke2_all.yml:__
+```yaml
+rke2_kubelet_config:
+  evictionHard:
+    nodefs.inodesFree: "5%"
+```
+
+
 ### Defining an Audit Policy  
 In order to define a audit policy config, server nodes will need to have the `rke2_audit_policy_config_file_path` variable defined, then the `audit-policy-file` will need to be defined in the rke2_config variable at the relevant level (please see [RKE Config Variables](#rke2-config-variables)). 
 

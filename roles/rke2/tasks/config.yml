@@ -24,3 +24,80 @@
     create: true
     mode: "0640"
   notify: Restart {{ service_name }}
+
+# Kubelet settings that are only expressible as KubeletConfiguration (not as
+# RKE2 config.yaml keys) are delivered as a drop-in. RKE2 launches the kubelet
+# with --config-dir and writes only 00-rke2-defaults.conf there, leaving other
+# files untouched across restarts and upgrades, so a 50- prefixed file is
+# applied after the defaults without contending with RKE2's own file or with
+# the 10-/20- names RKE2 reserves for `kubelet-arg: config=/config-dir=`.
+#
+# Prefer this over `kubelet-arg: eviction-hard=...`: kubelet re-parses command
+# line flags after merging config, and --eviction-hard binds the whole map, so
+# a flag would silently discard RKE2's imagefs/nodefs thresholds. Drop-in files
+# are merged as an RFC 7386 JSON merge patch, so map keys combine individually
+# and unset keys keep their existing values.
+#
+# RKE2 only started merging additional kubelet.conf.d files into the config
+# it hands the kubelet as of v1.32.0+rke2r1 (rancher/rke2#4043); on older
+# releases this drop-in is written to disk but never read, so the settings
+# would silently no-op. Fail loudly instead of installing a config nobody
+# applies. rke2_full_version is unset for "latest"/local-tarball installs, in
+# which case we can't check ahead of time and skip the assertion.
+- name: Resolve RKE2 version for the kubelet config drop-in support check
+  ansible.builtin.set_fact:
+    rke2_kubelet_config_resolved_version: "{{ (rke2_full_version | default(rke2_install_version, true)) | trim }}"
+  when: rke2_kubelet_config | length > 0
+
+- name: Fail on RKE2 releases that predate kubelet config drop-in support
+  ansible.builtin.assert:
+    that:
+      - (rke2_kubelet_config_resolved_version | regex_replace('^v?(\d+\.\d+).*', '\\1'))
+        is version(rke2_kubelet_config_min_version, '>=')
+    fail_msg: >-
+      rke2_kubelet_config is set but the resolved RKE2 version
+      ({{ rke2_kubelet_config_resolved_version }}) predates
+      v{{ rke2_kubelet_config_min_version }}.0+rke2r1, the first release that
+      merges additional files in --config-dir (see rancher/rke2#4043). Upgrade
+      rke2_install_version, or unset rke2_kubelet_config for this host.
+    success_msg: >-
+      RKE2 {{ rke2_kubelet_config_resolved_version }} supports kubelet config
+      drop-ins.
+  when:
+    - rke2_kubelet_config | length > 0
+    - rke2_kubelet_config_resolved_version | length > 0
+
+- name: Ensure the kubelet config drop-in directory exists
+  ansible.builtin.file:
+    path: "{{ rke2_kubelet_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: rke2_kubelet_config | length > 0
+
+- name: Create the ansible-managed kubelet config drop-in
+  ansible.builtin.copy:
+    content: |
+      ## This is an Ansible managed file, contents will be overwritten ##
+      {{
+        {
+          'apiVersion': 'kubelet.config.k8s.io/v1beta1',
+          'kind': 'KubeletConfiguration',
+        }
+        | ansible.builtin.combine(rke2_kubelet_config)
+        | to_nice_yaml(indent=2)
+      }}
+    dest: "{{ rke2_kubelet_config_dir }}/{{ rke2_kubelet_config_dropin_filename }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when: rke2_kubelet_config | length > 0
+  notify: Restart {{ service_name }}
+
+- name: Remove the ansible-managed kubelet config drop-in
+  ansible.builtin.file:
+    path: "{{ rke2_kubelet_config_dir }}/{{ rke2_kubelet_config_dropin_filename }}"
+    state: absent
+  when: rke2_kubelet_config | length == 0
+  notify: Restart {{ service_name }}

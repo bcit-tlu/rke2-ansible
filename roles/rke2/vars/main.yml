@@ -1,1 +1,9 @@
 ---
+# Internal constants for the kubelet config drop-in (see tasks/config.yml).
+# Deliberately not in defaults/main.yml: these paths must stay fixed for the
+# life of a host, since renaming either one would orphan the file written
+# under the old path, with no record of it left to clean up. RKE2's
+# --config-dir itself is not configurable, so there's no legitimate reason to
+# vary these per inventory.
+rke2_kubelet_config_dir: "/var/lib/rancher/rke2/agent/etc/kubelet.conf.d"
+rke2_kubelet_config_dropin_filename: "50-ansible-managed.conf"
