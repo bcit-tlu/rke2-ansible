@@ -52,7 +52,7 @@
 - name: Fail on RKE2 releases that predate kubelet config drop-in support
   ansible.builtin.assert:
     that:
-      - (rke2_kubelet_config_resolved_version | regex_replace('^v?(\d+\.\d+).*', '\1'))
+      - (rke2_kubelet_config_resolved_version | regex_replace('^v?(\d+\.\d+).*', '\\1'))
         is version(rke2_kubelet_config_min_version, '>=')
     fail_msg: >-
       rke2_kubelet_config is set but the resolved RKE2 version

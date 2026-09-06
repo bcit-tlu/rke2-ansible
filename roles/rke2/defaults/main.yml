@@ -36,8 +36,6 @@ rke2_config: {}
 # 00-rke2-defaults.conf drop-in. Empty by default so the role does not manage
 # kubelet configuration unless an inventory opts in. See config.yml.
 rke2_kubelet_config: {}
-rke2_kubelet_config_dir: "/var/lib/rancher/rke2/agent/etc/kubelet.conf.d"
-rke2_kubelet_config_dropin_filename: "50-ansible-managed.conf"
 # RKE2 only merges additional files placed in --config-dir from v1.32.0+rke2r1
 # onward (see rancher/rke2#4043); on older releases our drop-in is written but
 # silently ignored by the kubelet. config.yml fails fast when
