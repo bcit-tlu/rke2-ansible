@@ -34,7 +34,7 @@
 - name: Scope RKE2 testing inventory groups to the target cluster
   ansible.builtin.set_fact:
     rke2_target_cluster_group: "{{ rke2_active_cluster_groups[0] }}"
-    rke2_target_servers: "{{ groups.get('rke2_servers', []) | intersect(groups.get(rke2_active_cluster_groups[0], [])) }}"
+    rke2_target_servers: "{{ groups.get('rke2_servers', []) | select('in', groups.get(rke2_active_cluster_groups[0], [])) | list }}"
 
 - name: Require an RKE2 server in the target test cluster
   ansible.builtin.assert:

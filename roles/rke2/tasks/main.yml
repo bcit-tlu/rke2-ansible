@@ -42,7 +42,7 @@
 - name: Scope RKE2 inventory groups to the target cluster
   ansible.builtin.set_fact:
     rke2_target_cluster_group: "{{ rke2_active_cluster_groups[0] }}"
-    rke2_target_servers: "{{ groups.get('rke2_servers', []) | intersect(groups.get(rke2_active_cluster_groups[0], [])) }}"
+    rke2_target_servers: "{{ groups.get('rke2_servers', []) | select('in', groups.get(rke2_active_cluster_groups[0], [])) | list }}"
   tags:
     - always
 
@@ -157,13 +157,19 @@
   tags:
     - always
 
+# Filter on the wait_for result's 'state' field rather than 'failed': the
+# probe sets failed_when: false so a timed-out check does not abort the play,
+# which means failed is false even when nothing is listening. A successful
+# connect is the only case where state == 'present'; timed-out results omit
+# 'state' entirely, so the defined guard must precede the equality test.
 - name: Create a list of ready servers
   ansible.builtin.set_fact:
     ready_servers: >-
       {{
         rke2_target_server_api_checks.results
         | rejectattr('unreachable', 'defined')
-        | selectattr('failed', 'equalto', false)
+        | selectattr('state', 'defined')
+        | selectattr('state', 'equalto', 'present')
         | map(attribute='item')
         | list
       }}
