@@ -1,5 +1,6 @@
 exclude_paths:
   - .github/
+  - .worktrees/
   - molecule/
   - .ansible-lint
 warn_list:
